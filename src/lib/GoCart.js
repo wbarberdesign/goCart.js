@@ -31,6 +31,9 @@ class GoCart {
             itemQuantity: '.js-go-cart-quantity',
             itemQuantityPlus: '.js-go-cart-quantity-plus',
             itemQuantityMinus: '.js-go-cart-quantity-minus',
+            //CUSTOM START
+            progressContainer: '.progress-container',
+            //CUSTOM END
             cartMode: 'drawer',
             drawerDirection: 'right',
             displayModal: false,
@@ -39,11 +42,13 @@ class GoCart {
             labelAddedToCart: 'was added to your cart.',
             labelCartIsEmpty: 'Your Cart is currently empty!',
             labelQuantity: 'Quantity:',
-            labelRemove: 'Remove',
+            labelRemove: '<svg width="10" height="13" viewBox="0 0 10 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0.625111 12.8126V2.81256H9.37511V12.8126H0.625111ZM1.875 11.5627H8.125V4.06267H1.875V11.5627ZM10 0.625168V4.06256H0V0.625168H2.55368L3.17863 0H6.82154L7.44648 0.625168H10ZM8.74989 1.87506H6.92863L6.30346 1.25011H3.69637L3.0712 1.87506H1.24994V2.81261H8.74994L8.74989 1.87506Z" fill="black"/></svg>',
         };
 
         this.defaults = Object.assign({}, defaults, options);
-
+        //CUSTOM
+        this.progressContainer = document.querySelector(this.defaults.progressContainer);
+        //ENDCUSTOM
         this.cartModalFail = document.querySelector(this.defaults.cartModalFail);
         this.cartModalFailClose = document.querySelector(this.defaults.cartModalFailClose);
         this.cartModal = document.querySelector(this.defaults.cartModal);
@@ -176,6 +181,12 @@ class GoCart {
             });
     }
 
+    checkIfUpdate(response) {
+        console.log('UPDATE: next 2 rows');
+        console.log(response);
+        console.log(this);
+    }
+
     addItemToCart(formID) {
         const form = document.querySelector(`#${formID}`);
         const formData = serialize(form, {hash: true});
@@ -223,14 +234,19 @@ class GoCart {
             },
         })
             .then((response) => response.json())
+            .then((response) => this.checkIfUpdate(response))
             .then(() => this.fetchCart())
             .catch((error) => {
                 this.ajaxRequestFail();
+                console.log(error);
                 throw new Error(error);
             });
     }
 
     cartItemCount(cart) {
+        if(Number(this.cartCount.innerHTML) == cart.item_count) {
+            console.log(this);
+        }
         this.cartCount.innerHTML = cart.item_count;
     }
 
@@ -307,6 +323,7 @@ class GoCart {
     }
 
     renderDrawerCart(cart) {
+        this.progressContainer.classList.remove('hide');
         this.clearCartDrawer();
         cart.items.forEach((item, index) => {
             let itemVariant = item.variant_title;
@@ -363,9 +380,36 @@ class GoCart {
                 }
             });
         });
+        //**/ ---------------------------------- /**//
+        //**/ ----------CUSTOMISATIONS----------/**//
+        //**/ ---------------------------------- /**//
+        let total_price = 0;
+        const progressBar = document.getElementById('progress-bar');
+        const promotion_trigger= document.body.getAttribute('data-promotion-trigger');
+        const promotion_reward = document.body.getAttribute('data-promotion-reward');
+        const promotion_message = document.getElementById('promotion-message');
+
+        cart.items.map((cart_item) => {
+            total_price += cart_item.line_price;
+        })
+
+        // UPDATE PROGRESS BAR
+        if(progressBar) {
+            progressBar.setAttribute('style', `--progress: ${((total_price / promotion_trigger)).toFixed(2)}%;`)
+        }
+
+        // UPDATE PROGRESS MESSAGE
+        if(total_price > Number(promotion_trigger * 100)) {
+            promotion_message.innerHTML = `You've qualified for ${promotion_reward}`;
+        } else {
+            promotion_message.innerHTML = `You're ${formatMoney(Number(promotion_trigger * 100) - total_price)} away from ${promotion_reward}`;
+        }
+
+        document.querySelector('.go-cart__drawer').setAttribute('data-cart-total', total_price);
     }
 
     renderMiniCart(cart) {
+        this.progressContainer.classList.remove('hide');
         this.clearMiniCart();
         cart.items.forEach((item, index) => {
             let itemVariant = item.variant_title;
@@ -428,6 +472,7 @@ class GoCart {
         this.cartDrawerSubTotal.parentNode.classList.add('is-invisible');
         this.clearCartDrawer();
         this.cartDrawerContent.innerHTML = `<div class="go-cart__empty">${this.labelCartIsEmpty}</div>`;
+        this.progressContainer.classList.add('hide');
     }
 
     renderBlankMiniCart() {
